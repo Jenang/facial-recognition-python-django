@@ -141,7 +141,8 @@ def trainer(request):
     recognizer.train(faces, ids)
 
     # Save the recogzier state so that we can access it later
-    recognizer.save(BASE_DIR+'/ml/recognizer/trainingData.yml')
+    # recognizer.save(BASE_DIR+'/ml/recognizer/trainingData.yml')
+    recognizer.write(BASE_DIR + '/ml/recognizer/trainingData.yml')
     cv2.destroyAllWindows()
 
     return redirect('/')
