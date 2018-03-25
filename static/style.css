@@ -4,10 +4,10 @@ html, body {
 }
 
 #particles-js{
-  background-image: url('img/bg.jpg');
+  background-image: url('img/bg_new.jpg');
   height: 100vh;
   position:fixed;
   width: 100%;
   z-index: -100;
-  background-size: contain;
+  background-size: cover;
 }
