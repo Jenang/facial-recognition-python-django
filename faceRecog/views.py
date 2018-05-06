@@ -20,7 +20,6 @@ from settings import BASE_DIR
 from records.models import Records, Presensi
 from records.forms import RecordsForm, PresensiForm
 import datetime
-from django.shortcuts import get_object_or_404
 
 # membuat halaman utama
 def index(request):
