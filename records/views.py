@@ -11,8 +11,8 @@ def index(request):
     }
     return render(request, 'records.html', context)
 
-def details(request, id):
-    record = Records.objects.get(id=id)
+def details(request, npp):
+    record = Records.objects.get(npp=npp)
     context = {
         'record' : record
     }

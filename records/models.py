@@ -5,18 +5,40 @@ from django.db import models
 
 # Create your models here.
 class Records(models.Model):
-    id = models.CharField(max_length=100, primary_key=True)
-    first_name = models.CharField(max_length=50)
-    last_name = models.CharField(max_length=50, null=True)
-    residence = models.CharField(max_length=50, null=True)
-    country = models.CharField(max_length=50, null=True)
-    education = models.CharField(max_length=150, null=True)
-    occupation = models.CharField(max_length=150, null=True)
-    marital_status = models.CharField(max_length=50, null=True)
-    bio = models.TextField()
+
+    GENDER = (
+        (0, 'Laki-laki'),
+        (1, 'Perempuan')
+    )
+
+    npp = models.CharField(max_length=100, null=True, blank=True, unique=True)
+    nama = models.CharField(max_length=100, null=True, blank=True)
+    tempat_lahir = models.CharField(max_length=100, null=True, blank=True)
+    tanggal_lahir = models.DateField(null=True, blank=True)
+    jenis_kelamin = models.IntegerField(choices=GENDER, blank=True, null=True)
+    alamat = models.TextField(null=True, blank=True)
+    agama = models.CharField(max_length=100, null=True, blank=True)
+    status_pegawai = models.CharField(max_length=100, null=True, blank=True)
+    jabatan = models.TextField(null=True, blank=True)
     recorded_at = models.DateTimeField(default=datetime.now, blank=True)
 
     def __str__(self):
-        return self.first_name
+        return self.nama
     class Meta:
         verbose_name_plural = "Records"
+
+class Presensi(models.Model):
+
+    ABSENSI = (
+        (0, 'Alpha'),
+        (1, 'Hadir'),
+        (2, 'Izin'),
+        (3, 'Sakit')
+    )
+
+    pegawai = models.ForeignKey(Records, null=True, blank=True, related_name='presensi')
+    tanggal = models.DateField(null=True, blank=True)
+    jam_masuk = models.TimeField(null=True, blank=True)
+    jam_pulang = models.TimeField(null=True, blank=True)
+    kehadiran = models.IntegerField(choices=ABSENSI, blank=True, null=True)
+    recorded_at = models.DateTimeField(default=datetime.now, blank=True)

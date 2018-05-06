@@ -3,7 +3,6 @@ from PIL import Image
 import numpy as np
 
 def getImagesWithID(path):
-    #counterTest = 0
     h = 150
     w = 150
     # create a list for the path for all the images that is available in the folder

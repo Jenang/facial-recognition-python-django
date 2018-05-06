@@ -17,44 +17,52 @@ import matplotlib.pyplot as plt
 import pickle
 
 from settings import BASE_DIR
-# Create your views here.
+from records.models import Records, Presensi
+from records.forms import RecordsForm, PresensiForm
+import datetime
+from django.shortcuts import get_object_or_404
+
+# membuat halaman utama
 def index(request):
     return render(request, 'index.html')
 def errorImg(request):
     return render(request, 'error.html')
 
 def create_dataset(request):
-    #print request.POST
+    # print request.POST
     userId = request.POST['userId']
     print cv2.__version__
-    # Detect face
-    #Creating a cascade image classifier
+    # deteksi wajah dengan menggunakan cascade image classifier
     faceDetect = cv2.CascadeClassifier(BASE_DIR+'/ml/haarcascade_frontalface_default.xml')
-    #camture images from the webcam and process and detect the face
-    # takes video capture id, for webcam most of the time its 0.
+    # capture image dari webcam dan proses dan mendeteksi wajah
+    # mengambil id video capture dengan waktu 0 s.
     cam = cv2.VideoCapture(0)
 
-    # Our identifier
+    # identifikasi
+    # id disimpan di dalam userId dan menyimpan id dengan wajah sehingga nantinya dapat mengidentifikasi wajah tersebut
     # We will put the id here and we will store the id with a face, so that later we can identify whose face it is
     id = userId
-    # Our dataset naming counter
+    # untuk penghitung penamaan dataset
     sampleNum = 0
-    # Capturing the faces one by one and detect the faces and showing it on the window
+    # capture wajah satu per satu dan deteksi wajah dan menampilkannya
     while(True):
-        # Capturing the image
-        #cam.read will return the status variable and the captured colored image
+        # Capture citra
+        # cam.read akan mengembalikan variabel status dan citra berwarna yang diambil
         ret, img = cam.read()
-        #the returned img is a colored image but for the classifier to work we need a greyscale image
-        #to convert
+        # citra yang dikembalikan adalah citra berwarna tetapi agar klasifikasi dapat bekerja dibutuhkan citra grayscale
+        # untuk melakukan konversi
         gray = cv2.cvtColor(img, cv2.COLOR_BGR2GRAY)
-        #To store the faces
-        #This will detect all the images in the current frame, and it will return the coordinates of the faces
-        #Takes in image and some other parameter for accurate result
+        # untuk menyimpan citra wajah
+        # deteksi semua citra dalam frame, dan akan mengembalikan koordinat wajah
+        # Ini akan mendeteksi semua citra dalam frame saat ini, dan ini akan mengembalikan koordinat wajah
+        # Mengambil gambar dan beberapa parameter lain untuk hasil yang akurat
         faces = faceDetect.detectMultiScale(gray, 1.3, 5)
-        #In above 'faces' variable there can be multiple faces so we have to get each and every face and draw a rectangle around it.
+        #Di atas variabel 'wajah' bisa ada beberapa wajah jadi kita harus mendapatkan setiap wajah dan menggambar persegi panjang di sekitarnya.
         for(x,y,w,h) in faces:
             # Whenever the program captures the face, we will write that is a folder
+            # Setiap kali program capture wajah, kami akan menulis itu adalah folder
             # Before capturing the face, we need to tell the script whose face it is
+            # Sebelum menangkap wajah, kita perlu memberi tahu naskah yang wajahnya itu
             # For that we will need an identifier, here we call it id
             # So now we captured a face, we need to write it in a file
             sampleNum = sampleNum+1
@@ -140,7 +148,7 @@ def trainer(request):
     # For that we need face samples and corresponding labels
     recognizer.train(faces, ids)
 
-    # Save the recogzier state so that we can access it later
+    # Save the recognizer state so that we can access it later
     # recognizer.save(BASE_DIR+'/ml/recognizer/trainingData.yml')
     recognizer.write(BASE_DIR + '/ml/recognizer/trainingData.yml')
     cv2.destroyAllWindows()
@@ -168,7 +176,7 @@ def detect(request):
 
             getId,conf = rec.predict(gray[y:y+h, x:x+w]) #This will predict the id of the face
 
-            #print conf;
+            print conf;
             if conf<35:
                 userId = getId
                 cv2.putText(img, "Detected",(x,y+h), font, 2, (0,255,0),2)
@@ -182,6 +190,31 @@ def detect(request):
         if(cv2.waitKey(1) == ord('q')):
             break
         elif(userId != 0):
+            # insert to presensi
+            now = datetime.datetime.now()
+            pegawai = Records.objects.get(npp=userId)
+
+            checkAbsen = Presensi.objects.filter(pegawai=pegawai.id)
+            if checkAbsen.count() > 0:
+                for absen in checkAbsen:
+                    todayDate = now.strftime("%Y-%m-%d")
+                    if absen.tanggal.strftime("%Y-%m-%d") == todayDate:
+                        absen.jam_pulang = now.strftime("%H:%M")
+                        absen.save(update_fields=['jam_pulang'])
+            else:
+                presensiInstance = {
+                    'pegawai': pegawai.id,
+                    'tanggal': now.strftime("%Y-%m-%d"),
+                    'jam_masuk': now.strftime("%H:%M"),
+                    "kehadiran": 1,
+                }
+                presensi = PresensiForm(presensiInstance)
+                if presensi.is_valid():
+                    pres = presensi.save()
+                else:
+                    return redirect('/')
+
+            # close camera
             cv2.waitKey(1000)
             cam.release()
             cv2.destroyAllWindows()
@@ -190,147 +223,3 @@ def detect(request):
     cam.release()
     cv2.destroyAllWindows()
     return redirect('/')
-
-def eigenTrain(request):
-    path = BASE_DIR+'/ml/dataset'
-
-    # Fetching training and testing dataset along with their image resolution(h,w)
-    ids, faces, h, w= df.getImagesWithID(path)
-    print 'features'+str(faces.shape[1])
-    # Spliting training and testing dataset
-    X_train, X_test, y_train, y_test = train_test_split(faces, ids, test_size=0.25, random_state=42)
-    #print ">>>>>>>>>>>>>>> "+str(y_test.size)
-    n_classes = y_test.size
-    target_names = ['Manjil Tamang', 'Marina Tamang','Anmol Chalise']
-    n_components = 15
-    print("Extracting the top %d eigenfaces from %d faces"
-          % (n_components, X_train.shape[0]))
-    t0 = time()
-
-    pca = PCA(n_components=n_components, svd_solver='randomized',whiten=True).fit(X_train)
-
-    print("done in %0.3fs" % (time() - t0))
-    eigenfaces = pca.components_.reshape((n_components, h, w))
-    print("Projecting the input data on the eigenfaces orthonormal basis")
-    t0 = time()
-    X_train_pca = pca.transform(X_train)
-    X_test_pca = pca.transform(X_test)
-    print("done in %0.3fs" % (time() - t0))
-
-    # #############################################################################
-    # Train a SVM classification model
-
-    print("Fitting the classifier to the training set")
-    t0 = time()
-    param_grid = {'C': [1e3, 5e3, 1e4, 5e4, 1e5],
-                  'gamma': [0.0001, 0.0005, 0.001, 0.005, 0.01, 0.1], }
-    clf = GridSearchCV(SVC(kernel='rbf', class_weight='balanced'), param_grid)
-    clf = clf.fit(X_train_pca, y_train)
-    print("done in %0.3fs" % (time() - t0))
-    print("Best estimator found by grid search:")
-    print(clf.best_estimator_)
-
-    # #############################################################################
-    # Quantitative evaluation of the model quality on the test set
-
-    print("Predicting people's names on the test set")
-    t0 = time()
-    y_pred = clf.predict(X_test_pca)
-    print("Predicted labels: ",y_pred)
-    print("done in %0.3fs" % (time() - t0))
-
-    print(classification_report(y_test, y_pred, target_names=target_names))
-    # print(confusion_matrix(y_test, y_pred, labels=range(n_classes)))
-
-    # #############################################################################
-    # Qualitative evaluation of the predictions using matplotlib
-
-    def plot_gallery(images, titles, h, w, n_row=3, n_col=4):
-        """Helper function to plot a gallery of portraits"""
-        plt.figure(figsize=(1.8 * n_col, 2.4 * n_row))
-        plt.subplots_adjust(bottom=0, left=.01, right=.99, top=.90, hspace=.35)
-        for i in range(n_row * n_col):
-            plt.subplot(n_row, n_col, i + 1)
-            plt.imshow(images[i].reshape((h, w)), cmap=plt.cm.gray)
-            plt.title(titles[i], size=12)
-            plt.xticks(())
-            plt.yticks(())
-
-    # plot the gallery of the most significative eigenfaces
-    eigenface_titles = ["eigenface %d" % i for i in range(eigenfaces.shape[0])]
-    plot_gallery(eigenfaces, eigenface_titles, h, w)
-    # plt.show()
-
-    '''
-        -- Saving classifier state with pickle
-    '''
-    svm_pkl_filename = BASE_DIR+'/ml/serializer/svm_classifier.pkl'
-    # Open the file to save as pkl file
-    svm_model_pkl = open(svm_pkl_filename, 'wb')
-    pickle.dump(clf, svm_model_pkl)
-    # Close the pickle instances
-    svm_model_pkl.close()
-
-
-
-    pca_pkl_filename = BASE_DIR+'/ml/serializer/pca_state.pkl'
-    # Open the file to save as pkl file
-    pca_pkl = open(pca_pkl_filename, 'wb')
-    pickle.dump(pca, pca_pkl)
-    # Close the pickle instances
-    pca_pkl.close()
-
-    plt.show()
-
-    return redirect('/')
-
-
-def detectImage(request):
-    userImage = request.FILES['userImage']
-
-    svm_pkl_filename =  BASE_DIR+'/ml/serializer/svm_classifier.pkl'
-
-    svm_model_pkl = open(svm_pkl_filename, 'rb')
-    svm_model = pickle.load(svm_model_pkl)
-    #print "Loaded SVM model :: ", svm_model
-
-    pca_pkl_filename =  BASE_DIR+'/ml/serializer/pca_state.pkl'
-
-    pca_model_pkl = open(pca_pkl_filename, 'rb')
-    pca = pickle.load(pca_model_pkl)
-    #print pca
-
-    '''
-    First Save image as cv2.imread only accepts path
-    '''
-    im = Image.open(userImage)
-    #im.show()
-    imgPath = BASE_DIR+'/ml/uploadedImages/'+str(userImage)
-    im.save(imgPath, 'JPEG')
-
-    '''
-    Input Image
-    '''
-    try:
-        inputImg = casc.facecrop(imgPath)
-        inputImg.show()
-    except :
-        print("No face detected, or image not recognized")
-        return redirect('/error_image')
-
-    imgNp = np.array(inputImg, 'uint8')
-    #Converting 2D array into 1D
-    imgFlatten = imgNp.flatten()
-    #print imgFlatten
-    #print imgNp
-    imgArrTwoD = []
-    imgArrTwoD.append(imgFlatten)
-    # Applyting pca
-    img_pca = pca.transform(imgArrTwoD)
-    #print img_pca
-
-    pred = svm_model.predict(img_pca)
-    print(svm_model.best_estimator_)
-    print pred[0]
-
-    return redirect('/records/details/'+str(pred[0]))

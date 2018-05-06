@@ -27,13 +27,12 @@ def facecrop(image):
 
         sub_face = img[y:y+h, x:x+w]
 
-        #converts img array into grayscale
+        #konversi citra array menjadi grayscale
         gray_image = cv2.cvtColor(sub_face, cv2.COLOR_BGR2GRAY)
-        # Converts np array back into image
+        # konversi np array kembali menjadi citra
         img = Image.fromarray(gray_image)
-        # re-sizing to common dimension
+        # re-size ke dimensi umum
         img = img.resize((150,150), Image.ANTIALIAS)
-        #img.save('cropped.jpg')
     return img
 
-#facecrop("ashesh.jpeg").show()
+
