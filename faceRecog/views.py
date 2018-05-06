@@ -193,26 +193,23 @@ def detect(request):
             # insert to presensi
             now = datetime.datetime.now()
             pegawai = Records.objects.get(npp=userId)
+            presensiInstance = {
+                'pegawai': pegawai.id,
+                'tanggal': now.strftime("%Y-%m-%d"),
+                'jam_masuk': now.strftime("%H:%M"),
+                "kehadiran": 1,
+            }
 
-            checkAbsen = Presensi.objects.filter(pegawai=pegawai.id)
+            todayDate = now.strftime("%Y-%m-%d")
+            checkAbsen = Presensi.objects.filter(pegawai=pegawai.id, tanggal=todayDate)
             if checkAbsen.count() > 0:
                 for absen in checkAbsen:
-                    todayDate = now.strftime("%Y-%m-%d")
-                    if absen.tanggal.strftime("%Y-%m-%d") == todayDate:
-                        absen.jam_pulang = now.strftime("%H:%M")
-                        absen.save(update_fields=['jam_pulang'])
+                    absen.jam_pulang = now.strftime("%H:%M")
+                    absen.save(update_fields=['jam_pulang'])
             else:
-                presensiInstance = {
-                    'pegawai': pegawai.id,
-                    'tanggal': now.strftime("%Y-%m-%d"),
-                    'jam_masuk': now.strftime("%H:%M"),
-                    "kehadiran": 1,
-                }
                 presensi = PresensiForm(presensiInstance)
                 if presensi.is_valid():
                     pres = presensi.save()
-                else:
-                    return redirect('/')
 
             # close camera
             cv2.waitKey(1000)
