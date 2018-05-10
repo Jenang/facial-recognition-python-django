@@ -13,6 +13,7 @@ class Records(models.Model):
 
     npp = models.CharField(max_length=100, null=True, blank=True, unique=True)
     nama = models.CharField(max_length=100, null=True, blank=True)
+    foto_profile = models.ImageField(null=True, blank=True)
     tempat_lahir = models.CharField(max_length=100, null=True, blank=True)
     tanggal_lahir = models.DateField(null=True, blank=True)
     jenis_kelamin = models.IntegerField(choices=GENDER, blank=True, null=True)

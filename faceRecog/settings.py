@@ -127,3 +127,7 @@ STATIC_URL = '/static/'
 STATICFILES_DIRS = [
     BASE_DIR+'/static/',
 ]
+
+PROJECT_ROOT = os.path.realpath(os.path.dirname(__file__))
+MEDIA_ROOT = PROJECT_ROOT + '/img/profile/'
+MEDIA_URL = '/media/'
