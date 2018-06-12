@@ -4,6 +4,7 @@ from __future__ import unicode_literals
 from django.contrib import admin
 
 import csv
+import datetime
 from django.http import HttpResponse
 
 # Register your models here.
@@ -31,6 +32,13 @@ class PresensiAdmin(admin.ModelAdmin):
         response['Content-Disposition'] = 'attachment; filename=Report_Absensi.csv'
         writer = csv.writer(response)
 
+        writer.writerow('\n')
+        writer.writerow(['STMIK AKAKOM'])
+        writer.writerow('\n')
+        writer.writerow(['','','LAPORAN ABSENSI HARIAN'])
+        writer.writerow(['','','             TAHUN 2018'])
+        writer.writerow('\n')
+
         writer.writerow(['Tanggal','NPP','Pegawai','Jam Masuk','Jam Pulang','Kehadiran'])
         for obj in queryset:
             kehadiran = '-'
@@ -43,6 +51,19 @@ class PresensiAdmin(admin.ModelAdmin):
             elif obj.kehadiran == 3:
                 kehadiran = 'Sakit'
             row = writer.writerow([obj.tanggal,obj.pegawai.npp,obj.pegawai,obj.jam_masuk,obj.jam_pulang,kehadiran])
+
+        now = datetime.datetime.now()
+        tanggal = now.strftime("%d %b %Y")
+
+        writer.writerow('\n')
+        writer.writerow('\n')
+        writer.writerow(['', '', '', '','Yogyakarta, '+tanggal+''])
+        writer.writerow(['', '', '', '', '            Mengetahui'])
+        writer.writerow(['', '', '', '', '           Kepegawaian'])
+        writer.writerow('\n')
+        writer.writerow('\n')
+        writer.writerow(['', '', '', '', '_____________________'])
+        writer.writerow(['', '', '', '', 'NPP: ................................'])
 
         return response
 
