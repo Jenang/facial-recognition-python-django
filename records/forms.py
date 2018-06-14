@@ -1,6 +1,6 @@
 from django import forms
 
-from records.models import Records, Presensi
+from records.models import Records, Presensi, Citra
 
 class RecordsForm(forms.ModelForm):
     class Meta:
@@ -11,3 +11,8 @@ class PresensiForm(forms.ModelForm):
     class Meta:
         model = Presensi
         fields = ('pegawai','tanggal','jam_masuk','jam_pulang','kehadiran')
+
+class CitraForm(forms.ModelForm):
+    class Meta:
+        model = Citra
+        fields = ('npp','citra_name','pegawai')

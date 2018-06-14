@@ -43,3 +43,9 @@ class Presensi(models.Model):
     jam_pulang = models.TimeField(null=True, blank=True)
     kehadiran = models.IntegerField(choices=ABSENSI, blank=True, null=True)
     recorded_at = models.DateTimeField(default=datetime.now, blank=True)
+
+class Citra(models.Model):
+
+    pegawai = models.ForeignKey(Records, null=True, blank=True, related_name='citra')
+    npp = models.CharField(max_length=100, null=True, blank=True)
+    citra_name = models.CharField(max_length=100, null=True, blank=True)

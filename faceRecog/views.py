@@ -1,6 +1,6 @@
 from django.shortcuts import render, redirect
 import cv2
-import numpy as np
+import numpy as np # numerical processing dengan python
 import logging
 from sklearn.model_selection import train_test_split
 from . import dataset_fetch as df
@@ -17,8 +17,8 @@ import matplotlib.pyplot as plt
 import pickle
 
 from settings import BASE_DIR
-from records.models import Records, Presensi
-from records.forms import RecordsForm, PresensiForm
+from records.models import Records, Presensi, Citra
+from records.forms import RecordsForm, PresensiForm, CitraForm
 import datetime
 
 # membuat halaman utama
@@ -58,97 +58,96 @@ def create_dataset(request):
         faces = faceDetect.detectMultiScale(gray, 1.3, 5)
         #Di atas variabel 'wajah' bisa ada beberapa wajah jadi kita harus mendapatkan setiap wajah dan menggambar persegi panjang di sekitarnya.
         for(x,y,w,h) in faces:
-            # Whenever the program captures the face, we will write that is a folder
-            # Setiap kali program capture wajah, kami akan menulis itu adalah folder
-            # Before capturing the face, we need to tell the script whose face it is
-            # Sebelum menangkap wajah, kita perlu memberi tahu naskah yang wajahnya itu
-            # For that we will need an identifier, here we call it id
-            # So now we captured a face, we need to write it in a file
+            # Setiap kali program capture wajah, wajah tersebut disimpan di dalam folder
+            # wajah di capture dan identifikasi melalui id
             sampleNum = sampleNum+1
-            # Saving the image dataset, but only the face part, cropping the rest
+            # Menyimpan image dataset, tetapi hanya bagian wajah
             cv2.imwrite(BASE_DIR+'/ml/dataset/user.'+str(id)+'.'+str(sampleNum)+'.jpg', gray[y:y+h,x:x+w])
-            # @params the initial point of the rectangle will be x,y and
-            # @params end point will be x+width and y+height
-            # @params along with color of the rectangle
-            # @params thickness of the rectangle
+            # titik awal dari persegi panjang akan menjadi x, y dan titik akhir akan menjadi x + lebar dan y + tinggi, warna dari citra gray
+            citraName = 'user.'+str(id)+'.'+str(sampleNum)+'.jpg'
+
+            # save image name on database
+            pegawai = Records.objects.get(npp=str(id))
+            citraInstance = {
+                'npp': str(id),
+                'citra_name': citraName,
+                'pegawai': pegawai.id
+            }
+            checkCitra = Citra.objects.filter(npp=str(id), citra_name=citraName)
+            if checkCitra.count() > 0:
+                for citraUpdate in checkCitra:
+                    citraUpdate.citra_name = citraName
+                    citraUpdate.save(update_fields=['citra_name'])
+            else:
+                citra = CitraForm(citraInstance)
+                if citra.is_valid():
+                    cit = citra.save()
+
             cv2.rectangle(img,(x,y),(x+w,y+h), (0,255,0), 2)
-            # Before continuing to the next loop, I want to give it a little pause
-            # waitKey of 100 millisecond
+            # sebelum melanjutkan ke perulangan selanjtunya, akan diberi waktu berhenti 250 ms
             cv2.waitKey(250)
 
-        #Showing the image in another window
-        #Creates a window with window name "Face" and with the image img
+        #menampilkan citra di window yang berbeda
+        #menciptakan window dengan nama "Face" dan dengan citra img
         cv2.imshow("Face",img)
-        #Before closing it we need to give a wait command, otherwise the open cv wont work
-        # @params with the millisecond of delay 1
+        #Sebelum menutupnya, kita perlu memberikan perintah tunggu selama 1 ms, jika tidak opencv tidak akan berfungsi
         cv2.waitKey(1)
-        #To get out of the loop
+        #untuk keluar dari perulangan
         if(sampleNum>35):
             break
-    #releasing the cam
+    #menutup kamera
     cam.release()
-    # destroying all the windows
+    # menutup semua window
     cv2.destroyAllWindows()
 
     return redirect('/')
 
 def trainer(request):
-    '''
-        In trainer.py we have to get all the samples from the dataset folder,
-        for the trainer to recognize which id number is for which face.
 
-        for that we need to extract all the relative path
-        i.e. dataset/user.1.1.jpg, dataset/user.1.2.jpg, dataset/user.1.3.jpg
-        for this python has a library called os
-    '''
     import os
     from PIL import Image
 
-    #Creating a recognizer to train
+    #membuat recognizer LBPH dengan fungsi yang sudah disediakan
+    #oleh opencv dan memasukkan ke variabel
     recognizer = cv2.face.LBPHFaceRecognizer_create()
     #Path of the samples
     path = BASE_DIR+'/ml/dataset'
 
-    # To get all the images, we need corresponing id
+    # id yang sesuai diperlukan untuk mendapatkan semua citra
     def getImagesWithID(path):
-        # create a list for the path for all the images that is available in the folder
-        # from the path(dataset folder) this is listing all the directories and it is fetching the directories from each and every pictures
-        # And putting them in 'f' and join method is appending the f(file name) to the path with the '/'
-        imagePaths = [os.path.join(path,f) for f in os.listdir(path)] #concatinate the path with the image name
+        # membuat list untuk folder dataset untuk semua image yang tersedia di folder
+        # dari folder dataset diambil direktori dari masing-masing gambar
+        # menempatkan setiap gambar di 'f'
+        imagePaths = [os.path.join(path,f) for f in os.listdir(path)]
         #print imagePaths
 
-        # Now, we loop all the images and store that userid and the face with different image list
+        # dilakukan looping pada semua gambar dan menyimpan userid dan wajah dengan daftar gambar yang berbeda
         faces = []
         Ids = []
         for imagePath in imagePaths:
-            # First we have to open the image then we have to convert it into numpy array
-            faceImg = Image.open(imagePath).convert('L') #convert it to grayscale
-            # converting the PIL image to numpy array
-            # @params takes image and convertion format
+            # pertama membuka gambar maka sebelumnya gambar diubah menjadi numpy array
+            faceImg = Image.open(imagePath).convert('L') #konversikan menjadi grayscale
+            # konversikan PIL image menjadi numpy array
+            # ambil gambar dan mengkonversi format
             faceNp = np.array(faceImg, 'uint8')
-            # Now we need to get the user id, which we can get from the name of the picture
-            # for this we have to slit the path() i.e dataset/user.1.7.jpg with path splitter and then get the second part only i.e. user.1.7.jpg
-            # Then we split the second part with . splitter
-            # Initially in string format so hance have to convert into int format
-            ID = int(os.path.split(imagePath)[-1].split('.')[1]) # -1 so that it will count from backwards and slipt the second index of the '.' Hence id
-            # Images
+
+            ID = int(os.path.split(imagePath)[-1].split('.')[1])
             faces.append(faceNp)
             # Label
             Ids.append(ID)
-            #print ID
+            #cetak ID
             cv2.imshow("training", faceNp)
             cv2.waitKey(10)
         return np.array(Ids), np.array(faces)
 
-    # Fetching ids and faces
+    # mengambil id and wajah
     ids, faces = getImagesWithID(path)
 
-    #Training the recognizer
-    # For that we need face samples and corresponding labels
+    #melatih pengenalan wajah
+    # untuk itu diperlukan sampel wajah dan id yang sesuai
     recognizer.train(faces, ids)
 
-    # Save the recognizer state so that we can access it later
-    # recognizer.save(BASE_DIR+'/ml/recognizer/trainingData.yml')
+    #menulis recognizer yang sudah di training oleh program trainer
     recognizer.write(BASE_DIR + '/ml/recognizer/trainingData.yml')
     cv2.destroyAllWindows()
 
@@ -156,6 +155,7 @@ def trainer(request):
 
 
 def detect(request):
+    # melakukan load/memuat classifier
     faceDetect = cv2.CascadeClassifier(BASE_DIR+'/ml/haarcascade_frontalface_default.xml')
 
     cam = cv2.VideoCapture(0)
@@ -169,21 +169,18 @@ def detect(request):
     while(True):
         ret, img = cam.read()
         gray = cv2.cvtColor(img, cv2.COLOR_BGR2GRAY)
-        faces = faceDetect.detectMultiScale(gray, 1.3, 5)
+        faces = faceDetect.detectMultiScale(gray, 1.3, 5) #deteksi ada tidaknya wajah pada citra, wajah yang ditemukan memiliki return value berupa tuple (x,y,width,height)
         for(x,y,w,h) in faces:
-            cv2.rectangle(img,(x,y),(x+w,y+h), (0,255,0), 2)
+            cv2.rectangle(img,(x,y),(x+w,y+h), (0,255,0), 2) #membuat objek berbentuk persegi pada wajah jika terdeteksi
 
-            getId,conf = rec.predict(gray[y:y+h, x:x+w]) #This will predict the id of the face
+            getId,conf = rec.predict(gray[y:y+h, x:x+w])
 
             print conf;
-            if conf<35:
+            if conf<36:
                 userId = getId
                 cv2.putText(img, "Detected",(x,y+h), font, 2, (0,255,0),2)
             else:
                 cv2.putText(img, "Unknown",(x,y+h), font, 2, (0,0,255),2)
-
-            # Printing that number below the face
-            # @Prams cam image, id, location,font style, color, stroke
 
         cv2.imshow("Face",img)
         if(cv2.waitKey(1) == ord('q')):
